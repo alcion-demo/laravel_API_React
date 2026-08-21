@@ -14,5 +14,4 @@ Route::apiResource('todos', TodoController::class)
         'store',
         'update',
         'destroy',
-    ]);
-    // ->middleware('auth:sanctum');
+    ])->middleware('auth:sanctum');
