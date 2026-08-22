@@ -14,15 +14,17 @@ type Todo = {
 const App = () => {
 
   //ログイン状態取得
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   const [todos, setTodos] = useState<Todo[]>([]);
   const [title, setTitle] = useState("");
+  const [error, setError] = useState("");
+  const [editError, setEditError] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
-  // useEffect(() => {
-  //   fetchTodos();
-  // }, []);
 
+  /**
+   * todo取得
+   */
   const fetchTodos = async () => {
       const response = await apiFetch('/api/todos');
 
@@ -33,6 +35,11 @@ const App = () => {
       setTodos(data);
   };
 
+  /**
+   * 削除
+   * @param id 
+   * @returns 
+   */
   const deleteTodo = async (id: number) => {
     const response = await apiFetch(`/api/todos/${id}`, {
       method: "DELETE",
@@ -51,12 +58,20 @@ const App = () => {
     );
   };
 
+  /**
+   * 編集
+   * @param id 
+   * @returns 
+   */
   const editTodo = async (id: number) => {
+    //APIへリクエスト送信(apiFetch)、APIから返ってきたresponseを取得
     const response = await apiFetch(`/api/todos/${id}`, {
       method: "PUT",
+      //リクエストの形式をJSONに指定
       headers: {
         "Content-Type": "application/json",
       },
+      // APIへ送信するデータ
       body: JSON.stringify({
         title: title,
       }),
@@ -67,6 +82,9 @@ const App = () => {
     console.log('update:', response.status, data);
 
     if (!response.ok) {
+      if (response.status === 422) {
+        setEditError(data.errors?.title?.[0] ?? "");
+      }
         return;
     }
 
@@ -74,15 +92,26 @@ const App = () => {
     setEditingId(null);
     setTitle("");
 
+    //最新のtodo取得
     fetchTodos();
   };
 
+  /**
+   * キャンセル
+   */
   const cancelEdit = () => {
     setEditingId(null);
     setTitle("");
+    setEditError("");
   };
 
+  /**
+   * 登録
+   * @returns 
+   */
   const createTodo = async () => {
+    setError("");
+
     const response = await apiFetch('/api/todos', {
       method: 'POST',
       headers: {
@@ -98,12 +127,31 @@ const App = () => {
     console.log('create:', response.status, data);
 
     if (!response.ok) {
+        if (response.status === 422) {
+            setError(data.errors?.title?.[0] ?? "");
+        }
         return;
     }
 
+    //タイトル初期化
     setTitle('');
+
+    //最新のtodo取得
     fetchTodos();
   };
+
+  //Laravelにログイン状態を確認
+  useEffect(() => {
+      const checkLogin = async () => {
+          const response = await apiFetch('/api/user');
+
+          if (response.ok) {
+              setIsLoggedIn(true);
+          }
+      };
+
+      checkLogin();
+  }, []);
 
   // ログイン成功後にTodoを取得
   useEffect(() => {
@@ -112,18 +160,32 @@ const App = () => {
       }
   }, [isLoggedIn]);
 
+  //ログイン状態確認により、画面描画決定
+  if (isLoggedIn === null) {
+    return <div>確認中...</div>;
+  }
+
+  if (!isLoggedIn) {
+      return (
+          <Login
+              onLoginSuccess={() => setIsLoggedIn(true)}
+          />
+      );
+  }
+
   return (
     <>
+      {/** ログイン済み */}
       {isLoggedIn ? (
         <>
           <h1>ログイン済み</h1>
-          {/** */}
+          {/** Todoの数だけ繰り返す */}
           {todos.map((todo) => (
             <div key={todo.id}>
               {todo.title}
 
+              {/** 編集状態確認 */}
               {
-                //編集中かどうか
                 editingId === todo.id ? (
                   <>
                     <input
@@ -136,15 +198,17 @@ const App = () => {
                     <button onClick={cancelEdit}>
                       キャンセル
                     </button>
+                    {editError && <p style={{ color: "red" }}>{editError}</p>}
                   </>
                 ) : (
                   <button onClick={() => {
                       setEditingId(todo.id);
                       setTitle(todo.title);
+                      setEditError("");
                     }}
                   >
-                      編集
-                    </button>
+                    編集
+                  </button>
                 )
               }
 
@@ -152,23 +216,28 @@ const App = () => {
                 削除
               </button>
             </div>
-      ))}
+          ))}
+          {/** 繰り返しここまで */}
 
-      <input
-        value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          style={{ width: "200px" }}
-      />
-      <button onClick={createTodo} style={{ width: "200px" }}>
-        追加
-      </button>
+          <div>
+            <input
+              value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                style={{ width: "200px" }}
+            />
+                {error && <p style={{ color: "red" }}>{error}</p>}
 
+            <button onClick={createTodo} style={{ width: "200px" }}>
+              追加
+            </button>
+          </div>
+        </>
+
+      //ログイン済み状態にする
+      ) : (
+          <Login onLoginSuccess={() => setIsLoggedIn(true)} />
+      )}
     </>
-        ) : (
-            <Login onLoginSuccess={() => setIsLoggedIn(true)} />
-        )}
-    </>
-
   );
 }
 
