@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { apiFetch } from './utils/apiFetch';
 
 type LoginProps = {
   /** ログイン成功時に呼び出されるコールバック関数 */
@@ -9,38 +10,18 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    const getXsrfToken = () => {
-        const match = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('XSRF-TOKEN='));
-
-        return match ? decodeURIComponent(match.split('=')[1]) : '';
-    };
-
     //ログイン実行のイベントハンドラー
     const handleLogin = async () => {
         try {
-            await fetch('http://localhost:8000/sanctum/csrf-cookie', {
-                credentials: 'include',
-            });
+            await apiFetch('/sanctum/csrf-cookie');
 
             console.log('csrf ok');
-            const xsrfToken = getXsrfToken();
-
-            console.log('xsrf token:', xsrfToken);
-
-            if (!xsrfToken) {
-                throw new Error('XSRF-TOKEN cookieが取得できていません');
-            }
 
             // ログイン認証リクエスト（POST）
-            const loginResponse = await fetch('http://localhost:8000/login', {
+            const loginResponse =  await apiFetch('/login', {
                 method: 'POST',
-                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-XSRF-TOKEN': xsrfToken,
                 },
                 body: JSON.stringify({
                     email: email,
@@ -50,16 +31,14 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
 
             console.log('login status:', loginResponse.status);
 
+            if (!loginResponse.ok) {
+                const data = await loginResponse.json();
+                console.log('login error:', data);
+                return;
+            }
+
             //認証済みユーザー情報の取得
-            const userResponse = await fetch(
-                'http://localhost:8000/api/user',
-                {
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                }
-            );
+            const userResponse = await apiFetch('/api/user');
 
             console.log('user status:', userResponse.status);
 
@@ -67,10 +46,8 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
 
             console.log('authenticated user:', user);
 
-            //ログイン状態引き渡し
-            if (userResponse.ok) {
-                onLoginSuccess();
-            }
+            onLoginSuccess();
+
 
         } catch (error) {
             console.error('login error:', error);

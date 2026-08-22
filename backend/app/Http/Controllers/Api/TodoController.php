@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Todo;
+use App\Http\Requests\StoreTodo;
+use App\Http\Requests\UpdateTodo;
 
 class TodoController extends Controller
 {
@@ -12,10 +14,11 @@ class TodoController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $todos = $request->user()->todos;
         return response()->json(
-            Todo::all(),
+            $todos,
             200,
             [],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
@@ -33,12 +36,13 @@ class TodoController extends Controller
 
     }
 
-    public function update(Request $request, string $id)
+    public function update(UpdateTodo $request, string $id)
     {
         $todo = $this->todo->find($id);
+        $validated = $request->validated();
 
         $todo->update([
-            'title' => $request->title,
+            'title' => $validated['title'],
         ]);
         return response()->json([
             'message' => 'updated'
@@ -46,12 +50,15 @@ class TodoController extends Controller
 
     }
 
-    public function store(Request $request)
+    public function store(StoreTodo $request)
     {
 
-        $todo = $this->todo->create([
-            'title' => $request->title,
-        ]);
+        $validated = $request->validated();
+
+        $todo = $this->todo->storeTodoList(
+            $request->user()->id,
+            $validated['title']
+        );
         return response()->json([
             'message' => 'created'
         ]);
