@@ -4,6 +4,8 @@ import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import Login from './login';
 import { apiFetch } from './utils/apiFetch';
+import TodoForm from './components/Todo/TodoForm'
+import TodoList from './components/Todo/TodoList';
 import './App.css'
 
 type Todo = {
@@ -63,7 +65,7 @@ const App = () => {
    * @param id 
    * @returns 
    */
-  const editTodo = async (id: number) => {
+  const editTodo = async (id: number, title: string) => {
     //APIへリクエスト送信(apiFetch)、APIから返ってきたresponseを取得
     const response = await apiFetch(`/api/todos/${id}`, {
       method: "PUT",
@@ -145,11 +147,14 @@ const App = () => {
       const checkLogin = async () => {
           const response = await apiFetch('/api/user');
 
-          if (response.ok) {
-              setIsLoggedIn(true);
-          }
-      };
+        console.log('login check:', response.status);
 
+        if (response.ok) {
+            setIsLoggedIn(true);
+        } else {
+            setIsLoggedIn(false);
+        }
+    };
       checkLogin();
   }, []);
 
@@ -179,58 +184,21 @@ const App = () => {
       {isLoggedIn ? (
         <>
           <h1>ログイン済み</h1>
-          {/** Todoの数だけ繰り返す */}
-          {todos.map((todo) => (
-            <div key={todo.id}>
-              {todo.title}
 
-              {/** 編集状態確認 */}
-              {
-                editingId === todo.id ? (
-                  <>
-                    <input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
-                      <button onClick={() => editTodo(todo.id)}>
-                        保存
-                    </button>
-                    <button onClick={cancelEdit}>
-                      キャンセル
-                    </button>
-                    {editError && <p style={{ color: "red" }}>{editError}</p>}
-                  </>
-                ) : (
-                  <button onClick={() => {
-                      setEditingId(todo.id);
-                      setTitle(todo.title);
-                      setEditError("");
-                    }}
-                  >
-                    編集
-                  </button>
-                )
-              }
+          <TodoList
+            todos={todos}
+            deleteTodo={deleteTodo}
+            editTodo={editTodo}
+          />
 
-              <button onClick={() => deleteTodo(todo.id)}>
-                削除
-              </button>
-            </div>
-          ))}
           {/** 繰り返しここまで */}
 
-          <div>
-            <input
-              value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                style={{ width: "200px" }}
-            />
-                {error && <p style={{ color: "red" }}>{error}</p>}
-
-            <button onClick={createTodo} style={{ width: "200px" }}>
-              追加
-            </button>
-          </div>
+          <TodoForm
+            title={title}
+            setTitle={setTitle}
+            error={error}
+            createTodo={createTodo}
+          />
         </>
 
       //ログイン済み状態にする
