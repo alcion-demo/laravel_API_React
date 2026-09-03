@@ -182,3 +182,27 @@
     border-right-color: var(--border);
   }
 }
+
+.admin-nav {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.admin-nav button {
+  width: auto;
+  padding: 6px 20px;
+}
+
+.user-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.user-actions button {
+  width: auto;
+  padding: 4px 12px;
+}
