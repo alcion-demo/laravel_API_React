@@ -3,38 +3,36 @@ import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import Login from './login';
+import Register from './Register';
 import { apiFetch } from './utils/apiFetch';
 import TodoForm from './components/Todo/TodoForm'
 import TodoList from './components/Todo/TodoList';
+import Admin from './Admin';
+import type { Todo } from './Types/Todo';
 import './App.css'
-
-type Todo = {
-    id: number;
-    title: string;
-};
 
 const App = () => {
 
   //ログイン状態取得
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [showRegister, setShowRegister] = useState(false);
 
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [title, setTitle] = useState("");
-  const [error, setError] = useState("");
-  const [editError, setEditError] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [user, setUser] = useState<any>(null);
+  const [adminPage, setAdminPage] = useState<'todo' | 'users'>('todo');
 
   /**
    * todo取得
    */
   const fetchTodos = async () => {
-      const response = await apiFetch('/api/todos');
+    const response = await apiFetch('/api/todos');
 
-      const data = await response.json();
+    const data = await response.json();
 
-      console.log('todos:', data);
-
-      setTodos(data);
+    console.log('todos:', JSON.stringify(data, null, 2));
+    // console.log('todos:', data);
+    setTodos(data);
   };
 
   /**
@@ -52,7 +50,7 @@ const App = () => {
     console.log('delete:', response.status, data);
 
     if (!response.ok) {
-        return;
+      return;
     }
 
     setTodos((prevTodos) =>
@@ -65,7 +63,7 @@ const App = () => {
    * @param id 
    * @returns 
    */
-  const editTodo = async (id: number, title: string) => {
+  const editTodo = async (id: number, title: string, completed: boolean) => {
     //APIへリクエスト送信(apiFetch)、APIから返ってきたresponseを取得
     const response = await apiFetch(`/api/todos/${id}`, {
       method: "PUT",
@@ -76,6 +74,7 @@ const App = () => {
       // APIへ送信するデータ
       body: JSON.stringify({
         title: title,
+        completed: completed,
       }),
     });
 
@@ -85,42 +84,29 @@ const App = () => {
 
     if (!response.ok) {
       if (response.status === 422) {
-        setEditError(data.errors?.title?.[0] ?? "");
+        return data.errors?.title?.[0] ?? "";
       }
-        return;
+      return;
     }
-
-    //todoではなく編集中のid初期化
-    setEditingId(null);
-    setTitle("");
 
     //最新のtodo取得
     fetchTodos();
-  };
-
-  /**
-   * キャンセル
-   */
-  const cancelEdit = () => {
-    setEditingId(null);
-    setTitle("");
-    setEditError("");
+    return ""; "更新に失敗しました"
   };
 
   /**
    * 登録
    * @returns 
    */
-  const createTodo = async () => {
-    setError("");
-
+  const createTodo = async (title: string) => {
     const response = await apiFetch('/api/todos', {
       method: 'POST',
       headers: {
-          'Content-Type': 'application/json',
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-          title: title,
+        title: title,
+        completed: false,
       }),
     });
 
@@ -129,40 +115,54 @@ const App = () => {
     console.log('create:', response.status, data);
 
     if (!response.ok) {
-        if (response.status === 422) {
-            setError(data.errors?.title?.[0] ?? "");
-        }
-        return;
+      if (response.status === 422) {
+        return data.errors?.title?.[0] ?? "";
+      }
+      return "登録に失敗しました";
     }
-
-    //タイトル初期化
-    setTitle('');
 
     //最新のtodo取得
     fetchTodos();
+    return "";
+  };
+
+  const logout = async () => {
+    const response = await apiFetch('/logout', {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      console.log('logout error:', response.status);
+      return;
+    }
+
+    setIsLoggedIn(false);
   };
 
   //Laravelにログイン状態を確認
   useEffect(() => {
-      const checkLogin = async () => {
-          const response = await apiFetch('/api/user');
+    const checkLogin = async () => {
+      const response = await apiFetch('/api/user');
 
-        console.log('login check:', response.status);
+      console.log('login check:', response.status);
 
-        if (response.ok) {
-            setIsLoggedIn(true);
-        } else {
-            setIsLoggedIn(false);
-        }
+      if (response.ok) {
+        const userData = await response.json();
+
+        setUser(userData);
+        setIsLoggedIn(true);
+      } else {
+        setIsLoggedIn(false);
+      }
     };
-      checkLogin();
+    checkLogin();
   }, []);
 
   // ログイン成功後にTodoを取得
   useEffect(() => {
-      if (isLoggedIn) {
-          fetchTodos();
-      }
+    if (isLoggedIn) {
+      fetchTodos();
+    }
   }, [isLoggedIn]);
 
   //ログイン状態確認により、画面描画決定
@@ -171,42 +171,69 @@ const App = () => {
   }
 
   if (!isLoggedIn) {
-      return (
-          <Login
-              onLoginSuccess={() => setIsLoggedIn(true)}
-          />
-      );
+    if (showRegister) {
+      return <Register
+        onRegisterSuccess={(userData) => {
+          setUser(userData);
+          setIsLoggedIn(true);
+        }}
+        onBackToLogin={() => setShowRegister(false)}
+      />
+    }
+
+    return (
+      <Login
+        onLoginSuccess={(userData) => {
+          setIsLoggedIn(true);
+          setUser(userData);
+        }}
+        onRegister={() => setShowRegister(true)}
+      />
+    );
   }
 
-  return (
-    <>
-      {/** ログイン済み */}
-      {isLoggedIn ? (
-        <>
-          <h1>ログイン済み</h1>
+  if (user?.is_admin) {
+    return (
+      <>
+        <div className="admin-nav">
+          <button onClick={() => setAdminPage('todo')}>
+            Todo
+          </button>
 
-          <TodoList
-            todos={todos}
-            deleteTodo={deleteTodo}
-            editTodo={editTodo}
-          />
+          <button onClick={() => setAdminPage('users')}>
+            ユーザー管理
+          </button>
+        </div>
 
-          {/** 繰り返しここまで */}
+        {adminPage === 'users' ? (
+          <Admin />
+        ) : (
+          <>
+            <h1>Todoリスト</h1>
+            <p>{user?.name} さんでログイン中</p>
+            <p>{user?.email}</p>
 
-          <TodoForm
-            title={title}
-            setTitle={setTitle}
-            error={error}
-            createTodo={createTodo}
-          />
-        </>
+            <div>
+              <span>{user?.name} さんでログイン中</span>
+              <button onClick={logout}>
+                ログアウト
+              </button>
+            </div>
 
-      //ログイン済み状態にする
-      ) : (
-          <Login onLoginSuccess={() => setIsLoggedIn(true)} />
-      )}
-    </>
-  );
+            <TodoList
+              todos={todos}
+              deleteTodo={deleteTodo}
+              editTodo={editTodo}
+            />
+
+            <TodoForm
+              createTodo={createTodo}
+            />
+          </>
+        )}
+      </>
+    );
+  }
 }
 
 export default App
