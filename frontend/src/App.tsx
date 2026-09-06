@@ -10,6 +10,7 @@ import TodoList from './components/Todo/TodoList';
 import Admin from './Admin';
 import type { Todo } from './Types/Todo';
 import './App.css'
+import AppLayout from './components/Layout/AppLayout';
 
 const App = () => {
 
@@ -192,33 +193,44 @@ const App = () => {
     );
   }
 
-  if (user?.is_admin) {
-    return (
-      <>
-        <div className="admin-nav">
-          <button onClick={() => setAdminPage('todo')}>
-            Todo
-          </button>
+  return (
+    <>
+      <AppLayout
+        user={user}
+        logout={logout}
+      >
 
-          <button onClick={() => setAdminPage('users')}>
-            ユーザー管理
-          </button>
-        </div>
+        {user?.is_admin ? (
+          <div className="mb-6 flex gap-2 border-b border-gray-200">
+            <button
+              onClick={() => setAdminPage('todo')}
+              className={`px-4 py-2 text-sm font-medium ${
+                adminPage === 'todo'
+                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Todo
+            </button>
 
-        {adminPage === 'users' ? (
+            <button
+              onClick={() => setAdminPage('users')}
+              className={`px-4 py-2 text-sm font-medium ${
+                adminPage === 'users'
+                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              ユーザー管理
+            </button>
+          </div>
+        ) : null}
+
+        {user?.is_admin && adminPage === 'users' ? (
           <Admin />
         ) : (
           <>
             <h1>Todoリスト</h1>
-            <p>{user?.name} さんでログイン中</p>
-            <p>{user?.email}</p>
-
-            <div>
-              <span>{user?.name} さんでログイン中</span>
-              <button onClick={logout}>
-                ログアウト
-              </button>
-            </div>
 
             <TodoList
               todos={todos}
@@ -231,9 +243,10 @@ const App = () => {
             />
           </>
         )}
-      </>
-    );
-  }
+      </AppLayout>
+    </>
+  );
+
 }
 
 export default App
