@@ -14,6 +14,15 @@ const Admin = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [errors, setErrors] = useState<any>({});
 
+  const [keyword, setKeyword] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+
+  const filteredUsers = users.filter((user) =>
+    user.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchKeyword.toLowerCase())
+  );
+
+
   const fetchUsers = async () => {
     const response = await apiFetch('/api/admin/users');
 
@@ -120,30 +129,39 @@ const Admin = () => {
 
   };
 
-  const logout = async () => {
-    const response = await apiFetch('/logout', {
-      method: 'POST',
-    });
-
-    if (!response.ok) {
-      console.log('logout error:', response.status);
-      return;
-    }
-
-    window.location.reload();
-  };
-
   return (
     <>
       <div>
         <h1>Admin画面</h1>
 
-        <UserForm
-          createUser={createUser}
-          errors={errors}
-        />
+        <div className="my-4 flex gap-2">
+          <input
+            type="text"
+            placeholder="ユーザーを検索"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            className="flex-1 rounded border border-gray-300 px-3 py-2"
+          />
 
-        {users.map((user) => (
+          <button
+            onClick={() => setSearchKeyword(keyword)}
+            className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+          >
+            検索
+          </button>
+
+          <button
+            onClick={() => {
+              setKeyword("");
+              setSearchKeyword("");
+            }}
+            className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            クリア
+          </button>
+        </div>
+
+        {filteredUsers.map((user) => (
           <UserItem
             key={user.id}
             user={user}
@@ -151,10 +169,14 @@ const Admin = () => {
             updateUser={updateUser}
           />
         ))}
-      </div>
-        <button onClick={logout}>
-          ログアウト
-        </button>
+
+        <UserForm
+          createUser={createUser}
+          errors={errors}
+          clearErrors={() => setErrors({})}
+        />
+
+        </div>
     </>
   );
 };

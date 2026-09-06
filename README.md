@@ -1,7 +1,7 @@
 # LaravelからReactへのAPI通信学習  
 
-<img alt="Static Badge" src="https://img.shields.io/badge/wsl2-w?style=plastic&logo=linux&logoColor=000000&labelColor=%23FCC624&color=%23FCC624"> <img alt="Static Badge" src="https://img.shields.io/badge/ubuntu-u?style=plastic&logo=ubuntu&logoColor=%23ffffff&labelColor=%23E95420&color=%23E95420"> <img alt="Static Badge" src="https://img.shields.io/badge/alpine-l?style=plastic&logo=alpinelinux&logoColor=%23ffffff&labelColor=%230D597F&color=%230D597F">  
-<img alt="Static Badge" src="https://img.shields.io/badge/Docker-d?style=plastic&logo=docker&logoColor=%23ffffff&labelColor=%232496ED&color=%232496ED">
+<img alt="Static Badge" src="https://img.shields.io/badge/wsl2-w?style=plastic&logo=linux&logoColor=000000&labelColor=%23FCC624&color=%23FCC624"> <img alt="Static Badge" src="https://img.shields.io/badge/ubuntu-u?style=plastic&logo=ubuntu&logoColor=%23ffffff&labelColor=%23E95420&color=%23E95420"> <img alt="Static Badge" src="https://img.shields.io/badge/alpine-l?style=plastic&logo=alpinelinux&logoColor=%23ffffff&labelColor=%230D597F&color=%230D597F">
+<img alt="Static Badge" src="https://img.shields.io/badge/Docker-d?style=plastic&logo=docker&logoColor=%23ffffff&labelColor=%232496ED&color=%232496ED">  
 <img alt="Static Badge" src="https://img.shields.io/badge/NGINX-n?style=plastic&logo=nginx&logoColor=%23ffffff">
 <img alt="Static Badge" src="https://img.shields.io/badge/MySQL-m?style=plastic&logo=mysql&logoColor=%23ffffff&labelColor=%234479A1&color=%234479A1">
 <img alt="Static Badge" src="https://img.shields.io/badge/Laravel13-l?style=plastic&logo=laravel&logoColor=%23ffffff&labelColor=%23FF2D20&color=%23FF2D20">  
@@ -21,21 +21,26 @@
 
 ## 学習・検証目的
 - CRUD + API通信の理解
+- バックエンドからフロントエンドへ
 - SPAでの認証についての理解
+- バックエンドを中心とした開発において、フロントエンドとの連携に必要な知識・実装の理解
+- React / TypeScriptからLaravel APIを利用する一連の流れの検証
 
 ## 主な機能
 - CRUD + API通信
-  - 後で書く
-  - 後で書く
+  - `TodoController` にて `index`, `store`, `update`, `destroy` を実装
+  - `AdminController` にて 管理者向けユーザー管理 API（一覧・作成・更新・削除）
 - 認証フロー
-  - 後で書く
+  - ユーザー認証（Fortify）
+  - API 認証（Sanctum ミドルウェア適用）
+- フロントエンド骨格（React + TypeScript + Vite + Tailwind）
 
 ## 使用技術
 | カテゴリ | 使用技術 |
 | :--- | :--- |
 | **Backend** | Laravel 13 |
 | **Frontend** | React `^19.2.7`, Tailwind CSS, Node.js |
-| **AI** |Laravel AI / Gemini（AI SDK） |
+| **Authentication / Authorization** | Fortify |
 | **Infrastructure** | Docker Compose (App / Node / MySQL / Nginx) |
 | **OS Environment** | WSL2 (Ubuntu / Alpine Linux) |
 | **Database** | MySQL 8.x |
@@ -67,6 +72,7 @@ php artisan fortify:install
 docker compose run --rm node sh
 npm create vite@latest . -- --template react-ts
 npm install
+npm install tailwindcss @tailwindcss/vite
 ```
 #### 5. .env修正・作成  
 ※ バックエンドはcompose.ymlに設定した内容に修正。
@@ -130,9 +136,25 @@ php artisan config:publish cors
   - package.json
   - README.md
   - `src/`
+    - `components/`
+     - `Layout/`
+      - AppLayout.tsx
+     - `Todo/`
+      - TodoForm.tsx
+      - TodoItem.tsx
+      - TodoList.tsx
+     - `User/`
+      - UserForm.tsx
+      - UserItem.tsx
+    - `Types/`
+      - Todo.ts
+    - `utils/`
+      - apiFetch.ts
     - App.tsx
     - `main.tsx`
     - `App.css`
+    - `login.tsx`
+    - `Register.tsx`
   - `public/`
 
 ## 設計・実装の特徴
@@ -141,57 +163,65 @@ php artisan config:publish cors
 - `index()` は `JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE` 付きの JSON レスポンス
 - `App\Models\User` は PHP 8 の属性ベースで `Fillable` / `Hidden` を定義し、`password` を `hashed` にキャスト
 - フロントエンドは React Hooks でシンプルに API 連携し、CRUD 操作を実装
-- welcome.blade.php は Vite のビルド/ホットファイルを検知してアセットを読み込む構成
-- AppServiceProvider.php には現時点で register / boot 内の独自処理は未実装
+
 ---
 
 ## 処理の流れ
 ```mermaid
 graph TD
-  Browser[React フロントエンド] -->|GET /api/todos| Index[TodoController index]
-  Browser -->|POST /api/todos| Store[TodoController store]
-  Browser -->|PUT /api/todos/id| Update[TodoController update]
-  Browser -->|DELETE /api/todos/id| Destroy[TodoController destroy]
-
-  Index --> TodoModel[App Models Todo]
-  Store --> TodoModel
-  Update --> TodoModel
-  Destroy --> TodoModel
-
-  TodoModel --> DB[(データベース)]
-
-  Browser -->|GET /| WebHome[welcome view]
+  Client[Front-end React/Vite] -->|HTTP S| API[API Laravel + Sanctum]
+  API -->|routes/api.php| TodoController[TodoController]
+  API -->|routes/api.php| AdminController[AdminController]
+  TodoController -->|uses| TodoModel["App\Models\Todo"]
+  AdminController -->|uses| UserModel["App\Models\User"]
+  TodoModel --> DB[(Database: MySQL)]
+  UserModel --> DB
+  API -->|auth| Fortify[Fortify / Sanctum]
 ```
 ## クラス構成図
 ```mermaid
 classDiagram
-
-  class Controller {
-  }
-
-  class TodoController {
-    +index()
-    +store(Request request)
-    +update(Request request, string id)
-    +destroy(string id)
-  }
-
-  class Todo {
-    +fillable = ['title']
-  }
-
   class User {
-    +casts(): array
+    +id
+    +name
+    +email
+    +todos()
+  }
+  class Todo {
+    +id
+    +user_id
+    +title
+    +user()
+    +storeTodoList(userId, title)
+  }
+  class TodoController {
+    +index(Request)
+    +store(StoreTodo)
+    +update(UpdateTodo, id)
+    +destroy(id)
+  }
+  class AdminController {
+    +index()
+    +store(StoreUserRequest)
+    +update(UpdateUserRequest, User)
+    +destroy(User)
+  }
+  class FortifyActions {
+    +CreateNewUser
+    +UpdateUserPassword
+    +ResetUserPassword
+    +UpdateUserProfileInformation
   }
 
-  class AppServiceProvider {
-    +register(): void
-    +boot(): void
-  }
-
-
-  Controller <|-- TodoController
-  TodoController --> Todo
+  User "1" -- "*" Todo
+  TodoController ..> Todo : uses
+  AdminController ..> User : uses
+  FortifyActions ..> User : manage
 ```
 ## 今後の改善予定
-- プロトタイプと学習目的での実装なので、随時検討。
+- Reactの状態管理の理解
+- 自動テストの実装  
+
+[![Loom Video](https://img.shields.io/badge/Demo_Video-Loom-625DF5?style=for-the-badge&logo=loom)](https://www.loom.com/share/f1c61223d89d4a6d8e3178d5b03df2fc)
+
+[▶️ 動作デモ動画を視聴する（Loom）](https://www.loom.com/embed/f1c61223d89d4a6d8e3178d5b03df2fc)
